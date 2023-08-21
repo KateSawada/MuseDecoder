@@ -46,8 +46,6 @@ def ndarray_to_midi(
             (n_tracks != len(track_names))):
         raise ValueError("tracks count is differ from each arguments.")
     if (is_velocity_zero_one):
-        if (np.max(array) != 1 or np.min(array) != 0):
-            raise ValueError("given array is not zero-one.")
         array *= DEFAULT_VELOCITY
 
     tempo_array = np.full((n_timesteps, 1), tempo)
