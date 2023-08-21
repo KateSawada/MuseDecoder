@@ -1,38 +1,82 @@
 from typing import List
 
 import numpy as np
-from pypianoroll import Multitrack, Track
-import pretty_midi
-from pretty_midi import Instrument, PrettyMIDI
-import matplotlib.pyplot as plt
+from pypianoroll import Multitrack, StandardTrack
+from pretty_midi import PrettyMIDI
+
+
+MIDI_MAX_PITCHES = 128
+DEFAULT_VELOCITY = 80
 
 
 def ndarray_to_midi(
     array: np.ndarray,
+    is_velocity_zero_one: bool,
     programs: List[int],
     is_drums: List[bool],
     track_names: List[str],
     tempo: int,
+    beat_resolution: int,
     lowest_pitch: int,
-    is_zero_one: bool,
 ) -> PrettyMIDI:
     """convert pianoroll ndarray into PrettyMIDI
 
     Args:
         array (np.ndarray): pianoroll array.
-            shape=(tracks, measures, measure_resolution, pitches)
-        is_zero_one (bool): whether pianoroll array is zero_one array.
+            shape=(tracks, timesteps, pitches)
+            smaller index means lower note.
+        is_velocity_zero_one (bool): whether pianoroll array is zero_one array.
             if False, each elements is used as velocity(0-127)
         programs (List[int]): MIDI program numbers
         is_drums (List[bool]): whether each track is drums
         track_names (List[str]): track names
         tempo (int): tempo
+        beat_resolution (int): timesteps per beat
         lowest_pitch (int): lowest pitch in MIDI note number
 
     Returns:
         PrettyMIDI: converted MIDI song as Pretty MIDI
     """
-    # TODO: implement
+    if (array.ndim != 3):
+        raise ValueError("Invalid shape of input array.")
+    n_tracks, n_timesteps, n_pitches = array.shape
+    # arguments validation
+    if ((n_tracks != len(programs)) or
+            (n_tracks != len(is_drums)) or
+            (n_tracks != len(track_names))):
+        raise ValueError("tracks count is differ from each arguments.")
+    if (is_velocity_zero_one):
+        if (np.max(array) != 1 or np.min(array) != 0):
+            raise ValueError("given array is not zero-one.")
+        array *= DEFAULT_VELOCITY
+
+    tempo_array = np.full((n_timesteps, 1), tempo)
+
+    tracks = []
+    # create each track
+    for i_track, (program, is_drum, track_name) in \
+            enumerate(zip(programs, is_drums, track_names)):
+        # pad so that pitches is 128
+        pianoroll = np.pad(
+            array[i_track],
+            ((0, 0),
+             (lowest_pitch, MIDI_MAX_PITCHES - lowest_pitch - n_pitches),),
+            mode="constant",
+            constant_values=0,
+
+        )
+        tracks.append(
+            StandardTrack(
+                name=track_name,
+                program=program,
+                is_drum=is_drum,
+                pianoroll=pianoroll,))
+    multitrack = Multitrack(
+        tracks=tracks,
+        tempo=tempo_array,
+        resolution=beat_resolution,
+    )
+    return multitrack.to_pretty_midi()
 
 
 if __name__ == '__main__':
@@ -58,11 +102,15 @@ if __name__ == '__main__':
     ))
 
     # dummy song
-    pianoroll[0, :, ::24, 3] = 1  # kick
-    pianoroll[0, :, ::12, 9] = 1  # close hat
+    pianoroll[0, :, ::24, 15] = 1  # kick
+    pianoroll[0, :, ::12, 21] = 1  # close hat
     pianoroll[1, :, :-6, 51] = 1  # piano
     pianoroll[1, :, :-6, 55] = 1  # piano
+    pianoroll[1, :, :-6, 27] = 1  # piano
     pianoroll[2, :, :-6, 15] = 1  # bass
+
+    pianoroll = pianoroll.reshape((
+        n_tracks, n_measures * measure_resolution, n_pitches))
 
     mid = ndarray_to_midi(
         array=pianoroll,
@@ -71,5 +119,7 @@ if __name__ == '__main__':
         track_names=track_names,
         tempo=tempo,
         lowest_pitch=lowest_pitch,
-        is_zero_one=is_zero_one,
+        is_velocity_zero_one=is_zero_one,
+        beat_resolution=measure_resolution / n_measures,
     )
+    mid.write("test.mid")
