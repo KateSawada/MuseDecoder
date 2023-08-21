@@ -1,1 +1,1 @@
-from decode import *  # NOQA
+from .decode import *  # NOQA
