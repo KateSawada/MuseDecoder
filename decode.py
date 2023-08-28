@@ -1,4 +1,5 @@
 from typing import List
+import argparse
 
 import numpy as np
 from pypianoroll import Multitrack, StandardTrack
@@ -77,7 +78,30 @@ def ndarray_to_midi(
     return multitrack.to_pretty_midi()
 
 
-if __name__ == '__main__':
+def export_midi_from_lpd_npy():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input_npy", type=str, required=True)
+    parser.add_argument("-o", "--output_midi", type=str, required=True)
+    args = parser.parse_args()
+
+    pianoroll = np.load(args.input_npy).astype(np.int64)
+    pianoroll = pianoroll.transpose(3, 0, 1, 2)
+    pianoroll = pianoroll.reshape(pianoroll.shape[0], -1, pianoroll.shape[-1])
+
+    mid = ndarray_to_midi(
+        array=pianoroll,
+        is_velocity_zero_one=True,
+        programs=(0, 0, 25, 33, 48),
+        is_drums=[True, False, False, False, False,],
+        track_names=["Drums", "Piano", "Guitar", "Bass", "Strings",],
+        tempo=100,
+        beat_resolution=12,
+        lowest_pitch=21,
+    )
+    mid.write(args.output_midi)
+
+
+def debug():
     n_measures = 4
     measure_resolution = 24
     n_pitches = 88
@@ -121,3 +145,7 @@ if __name__ == '__main__':
         beat_resolution=measure_resolution / n_measures,
     )
     mid.write("test.mid")
+
+
+if __name__ == '__main__':
+    export_midi_from_lpd_npy()
