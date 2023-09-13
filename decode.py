@@ -45,7 +45,13 @@ def ndarray_to_midi(
     if ((n_tracks != len(programs)) or
             (n_tracks != len(is_drums)) or
             (n_tracks != len(track_names))):
-        raise ValueError("tracks count is differ from each arguments.")
+        raise ValueError(
+            "tracks count is differ from each arguments.\n"
+            f"array: {n_tracks}\n"
+            f"programs: {len(programs)}\n"
+            f"is_drums: {len(is_drums)}\n"
+            f"trask_names: {len(track_names)}\n"
+        )
     if (is_velocity_zero_one):
         array *= DEFAULT_VELOCITY
 
