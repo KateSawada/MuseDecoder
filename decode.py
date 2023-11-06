@@ -102,7 +102,7 @@ def export_midi_from_lpd_npy():
         track_names=["Drums", "Piano", "Guitar", "Bass", "Strings",],
         tempo=100,
         beat_resolution=12,
-        lowest_pitch=21,
+        lowest_pitch=25,
     )
     mid.write(args.output_midi)
 
